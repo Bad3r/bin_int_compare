@@ -47,9 +47,8 @@ The output will be a JSON array containing objects with the following structure:
 ```json
 {
 "address": "00000001",
-"data0": "00000001: 0400 05ca 000
-0 0d4s 034c 340c 50e5 3040",
-"data1": "00000001: 00c2 056a 580b dfe0 0000 0055 a627 e540"
+"data0": "0400 05ca 0000 0d4s 034c 340c 50e5 3040",
+"data1": "00c2 056a 580b dfe0 0000 0055 a627 e540"
 }
 ```
 
