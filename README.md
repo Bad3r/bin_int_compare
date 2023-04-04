@@ -46,9 +46,9 @@ The output will be a JSON array containing objects with the following structure:
 
 ```json
 {
-"address": "00000001",
-"data0": "0400 05ca 0000 0d4s 034c 340c 50e5 3040",
-"data1": "00c2 056a 580b dfe0 0000 0055 a627 e540"
+    "address": "00000001",
+    "data0": "0400 05ca 0000 0d4s 034c 340c 50e5 3040",
+    "data1": "00c2 056a 580b dfe0 0000 0055 a627 e540"
 }
 ```
 
@@ -57,6 +57,31 @@ Each object in the array represents a match found between the two files, with:
 -   `address`: The hexadecimal address offset where the match occurred.
 -   `data0`: The line from the first file containing `int0` in hexadecimal format.
 -   `data1`: The line from the second file containing `int1` in hexadecimal format.
+
+## Test case
+
+The provided [test.bin.c](./test_bin.c) file can be used to generate two testing binary files.
+Compile the file using the following command:
+
+```sh
+$ gcc -o 0x4d.bin -DBYTE_VALUE=77 test_bin.c
+$ gcc -o 0x21.bin -DBYTE_VALUE=33 test_bin.c
+```
+
+This will generate two binary files, `0x4d.bin` and `0x21.bin`, with the same contents except for the byte value at address `0x00000001`, which is set to 77 (`0x4D`) in `0x4d.bin` and 33 (`0x21`) in `0x21.bin`.
+
+### Expected output
+
+```json
+❯ cargo run --release -- ./0x4d.bin ./0x21.bin 77 33 | jq .
+[
+  {
+    "data1": "10 c7 45 fc 21 00 00 00 8b 45 fc 89 c6 48 8d 05",
+    "data0": "10 c7 45 fc 4d 00 00 00 8b 45 fc 89 c6 48 8d 05",
+    "address": "00001140"
+  }
+]
+```
 
 ## Technical Breakdown
 
