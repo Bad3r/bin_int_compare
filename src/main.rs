@@ -1,12 +1,9 @@
-/// A script that compares two binary files based on hexadecimal representations of input integers.
-/// The script takes two binary files and two integers as input, and returns the output in JSON format.
 use serde_json;
 use std::collections::HashMap;
 use std::env;
 use std::fs::File;
 use std::io::{self, Read};
 
-/// Read the binary file at the given file path and return its contents as a Vec<u8>.
 fn read_binary_file(file_path: &str) -> io::Result<Vec<u8>> {
     let mut file = File::open(file_path)?;
     let mut buffer = Vec::new();
@@ -14,63 +11,62 @@ fn read_binary_file(file_path: &str) -> io::Result<Vec<u8>> {
     Ok(buffer)
 }
 
-/// Convert the binary data into a vector of tuples containing the address and the corresponding
-/// hexadecimal data.
-fn binary_to_hex(binary_data: &[u8]) -> Vec<(String, String)> {
+fn binary_data_to_chunks(binary_data: &[u8]) -> Vec<(String, &[u8])> {
     binary_data
         .chunks(16)
         .enumerate()
         .map(|(i, chunk)| {
             let address = format!("{:08x}", i * 16);
-            let hex_ln = chunk
-                .iter()
-                .map(|byte| format!("{:02x}", byte))
-                .collect::<Vec<_>>()
-                .join(" ");
-            (address, hex_ln)
+            (address, chunk)
         })
         .collect()
 }
 
-/// Compare two hexadecimal strings and check if they contain the target hexadecimal values.
-fn compare_bytes(hex_str1: &str, hex_str2: &str, target_hex1: &str, target_hex2: &str) -> bool {
-    hex_str1.contains(target_hex1) && hex_str2.contains(target_hex2)
-}
-
-/// Compare two binary files based on the hexadecimal representations of the input integers.
 fn compare_files(
-    fp0_path: &str,
-    fp1_path: &str,
-    v0: u32,
-    v1: u32,
-) -> io::Result<Vec<HashMap<String, String>>> {
-    let v0_hex = format!("{:02x}", v0);
-    let v1_hex = format!("{:02x}", v1);
+    data0: &[u8],
+    data1: &[u8],
+    target_val1: u8,
+    target_val2: u8,
+) -> Vec<HashMap<String, String>> {
+    let chunks0 = binary_data_to_chunks(data0);
+    let chunks1 = binary_data_to_chunks(data1);
 
-    let fp0_data = read_binary_file(fp0_path)?;
-    let fp1_data = read_binary_file(fp1_path)?;
+    let chunks_dict0: HashMap<_, _> = chunks0.into_iter().collect();
+    let chunks_dict1: HashMap<_, _> = chunks1.into_iter().collect();
 
-    let fp0_hex = binary_to_hex(&fp0_data);
-    let fp1_hex = binary_to_hex(&fp1_data);
+    let mut matches_info = vec![];
 
-    let fp0_dict: HashMap<_, _> = fp0_hex.into_iter().collect();
-    let fp1_dict: HashMap<_, _> = fp1_hex.into_iter().collect();
-
-    let mut matches = vec![];
-
-    for (address, ln0) in &fp0_dict {
-        if let Some(ln1) = fp1_dict.get(address) {
-            if compare_bytes(ln0, ln1, &v0_hex, &v1_hex) {
+    for (address, chunk0) in &chunks_dict0 {
+        if let Some(chunk1) = chunks_dict1.get(address) {
+            if chunk0.contains(&target_val1) && chunk1.contains(&target_val2) {
                 let mut match_info = HashMap::new();
                 match_info.insert("address".to_string(), address.clone());
-                match_info.insert("data0".to_string(), ln0.clone());
-                match_info.insert("data1".to_string(), ln1.clone());
-                matches.push(match_info);
+                match_info.insert(
+                    "data0".to_string(),
+                    chunk0
+                        .iter()
+                        .map(|byte| format!("{:02x}", byte))
+                        .collect::<Vec<_>>()
+                        .join(" "),
+                );
+                match_info.insert(
+                    "data1".to_string(),
+                    chunk1
+                        .iter()
+                        .map(|byte| format!("{:02x}", byte))
+                        .collect::<Vec<_>>()
+                        .join(" "),
+                );
+                matches_info.push(match_info);
             }
         }
     }
 
-    Ok(matches)
+    matches_info
+}
+
+fn generate_json_output(matches_info: &[HashMap<String, String>]) -> String {
+    serde_json::to_string_pretty(matches_info).expect("Failed to serialize output")
 }
 
 fn main() -> io::Result<()> {
@@ -86,8 +82,14 @@ fn main() -> io::Result<()> {
     let v0 = args[3].parse::<u32>().expect("Invalid value for v0");
     let v1 = args[4].parse::<u32>().expect("Invalid value for v1");
 
-    let matches = compare_files(fp0_path, fp1_path, v0, v1)?;
-    let output_json = serde_json::to_string_pretty(&matches).expect("Failed to serialize output");
+    let data0 = read_binary_file(fp0_path)?;
+    let data1 = read_binary_file(fp1_path)?;
+
+    let target_val1 = v0 as u8;
+    let target_val2 = v1 as u8;
+
+    let matches_info = compare_files(&data0, &data1, target_val1, target_val2);
+    let output_json = generate_json_output(&matches_info);
     println!("{}", output_json);
 
     Ok(())
