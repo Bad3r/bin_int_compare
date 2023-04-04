@@ -1,6 +1,5 @@
 /// A script that compares two binary files based on hexadecimal representations of input integers.
 /// The script takes two binary files and two integers as input, and returns the output in JSON format.
-
 use serde_json;
 use std::collections::HashMap;
 use std::env;
@@ -33,6 +32,11 @@ fn binary_to_hex(binary_data: &[u8]) -> Vec<(String, String)> {
         .collect()
 }
 
+/// Compare two hexadecimal strings and check if they contain the target hexadecimal values.
+fn compare_bytes(hex_str1: &str, hex_str2: &str, target_hex1: &str, target_hex2: &str) -> bool {
+    hex_str1.contains(target_hex1) && hex_str2.contains(target_hex2)
+}
+
 /// Compare two binary files based on the hexadecimal representations of the input integers.
 fn compare_files(
     fp0_path: &str,
@@ -56,7 +60,7 @@ fn compare_files(
 
     for (address, ln0) in &fp0_dict {
         if let Some(ln1) = fp1_dict.get(address) {
-            if ln0.contains(&v0_hex) && ln1.contains(&v1_hex) {
+            if compare_bytes(ln0, ln1, &v0_hex, &v1_hex) {
                 let mut match_info = HashMap::new();
                 match_info.insert("address".to_string(), address.clone());
                 match_info.insert("data0".to_string(), ln0.clone());
